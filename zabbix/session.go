@@ -47,7 +47,7 @@ func (c *Session) login(username, password string) error {
 	// get Zabbix API version
 	_, err := c.GetVersion()
 	if err != nil {
-		return fmt.Errorf("Failed to retrieve Zabbix API version: %v", err)
+		return fmt.Errorf("failed to retrieve Zabbix API version: %v", err)
 	}
 
 	// login to API
@@ -111,7 +111,7 @@ func (c *Session) Do(req *Request) (resp *Response, err error) {
 		return
 	}
 
-	dprintf("Call     [%s:%d]: %s\n", req.Method, req.RequestID, b)
+	Dprintf("Call     [%s:%d]: %s\n", req.Method, req.RequestID, b)
 
 	// create HTTP request
 	r, err := http.NewRequest("POST", c.URL, bytes.NewReader(b))
@@ -139,7 +139,7 @@ func (c *Session) Do(req *Request) (resp *Response, err error) {
 		return nil, fmt.Errorf("Error reading response: %v", err)
 	}
 
-	dprintf("Response [%s:%d]: %s\n", req.Method, req.RequestID, b)
+	Dprintf("Response [%s:%d]: %s\n", req.Method, req.RequestID, b)
 
 	// map HTTP response to Response struct
 	resp = &Response{

@@ -1,6 +1,10 @@
 package main
 
-import "os"
+import (
+	"os"
+	"strconv"
+	"time"
+)
 
 func getEnv(key, fallback string) string {
 	value, exists := os.LookupEnv(key)
@@ -8,4 +12,12 @@ func getEnv(key, fallback string) string {
 		value = fallback
 	}
 	return value
+}
+
+func str2time(s string) (time.Time, error) {
+	sec, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Unix(sec, 0), nil
 }
