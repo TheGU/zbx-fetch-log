@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"regexp"
 	"strconv"
 	"time"
 )
@@ -20,4 +21,9 @@ func str2time(s string) (time.Time, error) {
 		return time.Time{}, err
 	}
 	return time.Unix(sec, 0), nil
+}
+
+func IReplace(subject string, search string, replace string) string {
+	searchRegex := regexp.MustCompile("(?i)" + search + "[\\s:]+")
+	return searchRegex.ReplaceAllString(subject, replace)
 }

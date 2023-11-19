@@ -43,17 +43,18 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	// fmt.Println(hosts[0])
+	pp.Println(hosts[0])
 	hostmap := make(map[string]zabbix.Host)
 	for _, host := range hosts {
 		hostmap[host.HostID] = host
 	}
-	pp.Println(hostmap)
+	// pp.Println(hostmap)
 
 	items, err := session.GetItems(zabbix.ItemGetParams{})
 	if err != nil {
 		panic(err)
 	}
+	pp.Println(items[0])
 	itemmap := make(map[int]zabbix.Item)
 	for _, item := range items {
 		itemmap[item.ItemID] = item
@@ -64,6 +65,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println(time.Unix(histories[0].Clock, 0).Format(time.RFC3339))
+	pp.Println(histories[0])
 
 	// Print history to file with host and item lookup
 	f, err := os.OpenFile(FILENAME, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
@@ -73,13 +76,14 @@ func main() {
 	defer f.Close()
 
 	for _, history := range histories {
+		_hostname := hostmap[strconv.Itoa(itemmap[history.ItemID].HostID)].Hostname
 		text := fmt.Sprintf(
 			"%s, HostID=\"%d\", Host=\"%s\", ItemID=\"%d\", Item=\"%s\", Value=\"%s\"\n",
 			time.Unix(history.Clock, 0).Format(time.RFC3339),
 			itemmap[history.ItemID].HostID,
-			hostmap[strconv.Itoa(itemmap[history.ItemID].HostID)].Hostname,
+			_hostname,
 			history.ItemID,
-			itemmap[history.ItemID].ItemName,
+			IReplace(itemmap[history.ItemID].ItemName, _hostname, ""),
 			history.Value)
 		if _, err = f.WriteString(text); err != nil {
 			panic(err)
@@ -87,12 +91,5 @@ func main() {
 	}
 
 	// fmt.Println(time.Unix(histories[0].Clock, 0).In(tzloc).Format(time.RFC3339))
-	fmt.Println(time.Unix(histories[0].Clock, 0).Format(time.RFC3339))
-	pp.Println(histories[0])
 
-	fmt.Println(time.Unix(histories[1].Clock, 0).Format(time.RFC3339))
-	pp.Println(histories[1])
-
-	fmt.Println(time.Unix(histories[2].Clock, 0).Format(time.RFC3339))
-	pp.Println(histories[2])
 }
