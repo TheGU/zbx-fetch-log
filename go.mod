@@ -1,4 +1,4 @@
-module pattapongj/zbx-fetch-log/v5
+module pattapongj/zbx-fetch-log/v6
 
 go 1.21.4
 

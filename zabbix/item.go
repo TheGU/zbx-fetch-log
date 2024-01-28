@@ -29,6 +29,16 @@ type Item struct {
 	// LastValueType is the type of LastValue
 	// 0 - float; 1 - text; 3 - int;
 	LastValueType int
+
+	Key          string
+	ItemType     int
+	Status       int
+	Units        string
+	TemplateID   int
+	MasterItemID int
+	// Type         ItemType
+	// ValueType    ValueType
+	// DataType     DataType
 }
 
 type ItemGetParams struct {
@@ -114,6 +124,9 @@ func (c *Session) GetItems(params ItemGetParams) ([]Item, error) {
 	if len(items) == 0 {
 		return nil, ErrNotFound
 	}
+
+	// pp.Println(items[0])
+
 	// map JSON Events to Go Events
 	out := make([]Item, len(items))
 	for i, jitem := range items {
