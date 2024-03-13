@@ -1,6 +1,6 @@
 module pattapongj/zbx-fetch-log/v6
 
-go 1.21.4
+go 1.22.1
 
 require (
 	github.com/Unknwon/goconfig v1.0.0 // indirect

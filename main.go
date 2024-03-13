@@ -11,7 +11,7 @@ var (
 	command    string
 	outputFile string
 	timeFrom   string
-	key        = []byte("the-key-has-to-be-32-bytes-long!") // Global key variable
+	key        = []byte("FQ@dhF#Lvo!ZtxA9ArnNdF!aeZZRdxiQ") // Global key variable
 
 )
 

@@ -2,6 +2,7 @@ package zabbix
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -122,10 +123,15 @@ func (c *Session) Do(req *Request) (resp *Response, err error) {
 	r.Header.Add("Content-Type", "application/json-rpc")
 
 	// send request
-	client := c.client
-	if client == nil {
-		client = http.DefaultClient
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
+	client := &http.Client{Transport: tr}
+
+	// client := c.client
+	// if client == nil {
+	// 	client = http.DefaultClient
+	// }
 	res, err := client.Do(r)
 	if err != nil {
 		return
