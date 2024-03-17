@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 )
 
@@ -140,12 +140,13 @@ func (c *Session) Do(req *Request) (resp *Response, err error) {
 	defer res.Body.Close()
 
 	// read response body
-	b, err = ioutil.ReadAll(res.Body)
+	b, err = io.ReadAll(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf("Error reading response: %v", err)
 	}
 
-	Dprintf("Response [%s:%d]: %s\n", req.Method, req.RequestID, b)
+	// TODO:
+	// Dprintf("Response [%s:%d]: %s\n", req.Method, req.RequestID, b)
 
 	// map HTTP response to Response struct
 	resp = &Response{

@@ -29,10 +29,11 @@ func (c *jHistory) History() (*History, error) {
 		return nil, fmt.Errorf("Error parsing History Clock: %v", err)
 	}
 
-	history.ItemID, err = strconv.Atoi(c.ItemID)
-	if err != nil {
-		return nil, fmt.Errorf("Error parsing History ItemID: %v", err)
-	}
+	// history.ItemID, err = strconv.Atoi(c.ItemID)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Error parsing History ItemID: %v", err)
+	// }
+	history.ItemID = c.ItemID
 
 	history.Ns, err = strconv.Atoi(c.Ns)
 	if err != nil {

@@ -1,5 +1,10 @@
 package zabbix
 
+import (
+	"encoding/json"
+	"strconv"
+)
+
 const (
 	// HostSourceDefault indicates that a Host was created in the normal way.
 	HostSourceDefault = 0
@@ -29,7 +34,7 @@ type Host struct {
 	Macros []HostMacro `json:"macros,omitempty"`
 
 	// Groups contains all Host Groups assigned to the Host.
-	Groups []Hostgroup `json:"groups,omitempty"`
+	Groups []Hostgroup `json:"hostgroups,omitempty"`
 
 	MaintenanceStatus string `json:"maintenance_status"`
 	MaintenanceID     string `json:"maintenanceid"`
@@ -90,7 +95,7 @@ type HostGetParams struct {
 
 	// SelectGroups causes the Host Groups that each Host belongs to to be
 	// attached in the search results.
-	SelectGroups SelectQuery `json:"selectGroups,omitempty"`
+	SelectHostGroups SelectQuery `json:"selectHostGroups,omitempty"`
 
 	// SelectApplications causes the Applications from each Host to be attached
 	// in the search results.
@@ -142,4 +147,28 @@ func (c *Session) GetHosts(params HostGetParams) ([]Host, error) {
 	}
 
 	return hosts, nil
+}
+
+// GetHostCount queries the Zabbix API for the number of Hosts matching the parameters.
+func (c *Session) GetHostCount(params HostGetParams) (int, error) {
+	params.CountOutput = true
+
+	req := NewRequest("host.get", params)
+	resp, err := c.Do(req)
+	if err != nil {
+		return 0, err
+	}
+
+	var resultStr string
+	err = json.Unmarshal(resp.Body, &resultStr)
+	if err != nil {
+		return 0, err
+	}
+
+	result, err := strconv.Atoi(resultStr)
+	if err != nil {
+		return 0, err
+	}
+
+	return result, nil
 }

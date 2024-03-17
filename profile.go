@@ -68,6 +68,7 @@ func setupProfile(profile string, key []byte) {
 	cfg.SetValue(profile, "zbxHost", zbxHost)
 	cfg.SetValue(profile, "zbxUsername", zbxUsername)
 	cfg.SetValue(profile, "zbxPassword", base64.StdEncoding.EncodeToString(ciphertext))
+	cfg.SetValue(profile, "ExportType", "snapshot")
 	goconfig.SaveConfigFile(cfg, "config.ini")
 	fmt.Println("Saved profile to config.ini")
 }
@@ -87,7 +88,7 @@ func runProfile(profile string, key []byte, outputFile string, timeFrom string, 
 		os.Exit(1)
 	}
 
-	runZabbixExport(zbxHost, zbxUsername, string(zbxPassword), outputFile, timeFrom, timeTo)
+	runZabbixExport(zbxHost, zbxUsername, string(zbxPassword), outputFile, timeFrom, timeTo, profile, cfg)
 }
 
 func encrypt(key, text []byte) ([]byte, error) {

@@ -11,7 +11,7 @@ type jItem struct {
 	ItemID               string `json:"itemid"`
 	ItemType             string `json:"type,omitempty"`
 	SNMP_OID             string `json:"snmp_oid,omitempty"`
-	ItemName             string `json:"name"`
+	ItemName             string `json:"name,omitempty"`
 	Key                  string `json:"key_"`
 	HostID               string `json:"hostid,omitempty"`
 	Delay                string `json:"delay,omitempty"`
@@ -78,21 +78,24 @@ type jItem struct {
 func (c *jItem) Item() (*Item, error) {
 	var err error
 	item := &Item{}
-	item.HostID, err = strconv.Atoi(c.HostID)
-	if err != nil {
-		return nil, fmt.Errorf("Error parsing Host ID: %v", err)
-	}
-	item.ItemID, err = strconv.Atoi(c.ItemID)
-	if err != nil {
-		return nil, fmt.Errorf("Error parsing Item ID: %v", err)
-	}
+	// item.HostID, err = strconv.Atoi(c.HostID)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Error parsing Host ID: %v", err)
+	// }
+	item.HostID = c.HostID
+	// item.ItemID, err = strconv.Atoi(c.ItemID)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Error parsing Item ID: %v", err)
+	// }
+	item.ItemID = c.ItemID
 	item.ItemName = c.ItemName
 	item.ItemDescr = c.ItemDescr
 
-	item.LastClock, err = strconv.Atoi(c.LastClock)
-	if err != nil {
-		return nil, fmt.Errorf("Error parsing Item LastClock: %v", err)
-	}
+	item.LastClock, _ = strconv.ParseInt(c.LastClock, 10, 64)
+	// item.LastClock, err = strconv.Atoi(c.LastClock)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Error parsing Item LastClock: %v", err)
+	// }
 	item.LastValue = c.LastValue
 
 	item.LastValueType, err = strconv.Atoi(c.LastValueType)
@@ -102,23 +105,27 @@ func (c *jItem) Item() (*Item, error) {
 
 	// New fields
 	item.Key = c.Key
-	item.ItemType, err = strconv.Atoi(c.ItemType)
-	if err != nil {
-		return nil, fmt.Errorf("Error parsing Item Type: %v", err)
-	}
-	item.Status, err = strconv.Atoi(c.Status)
-	if err != nil {
-		return nil, fmt.Errorf("Error parsing Item Status: %v", err)
-	}
+	item.ItemType, _ = strconv.Atoi(c.ItemType)
+	// item.ItemType, err = strconv.Atoi(c.ItemType)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Error parsing Item Type: %v", err)
+	// }
+	item.Status, _ = strconv.Atoi(c.Status)
+	// item.Status, err = strconv.Atoi(c.Status)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Error parsing Item Status: %v", err)
+	// }
 	item.Units = c.Units
-	item.TemplateID, err = strconv.Atoi(c.TemplateID)
-	if err != nil {
-		return nil, fmt.Errorf("Error parsing Template ID: %v", err)
-	}
-	item.MasterItemID, err = strconv.Atoi(c.MasterItemID)
-	if err != nil {
-		return nil, fmt.Errorf("Error parsing Master Item ID: %v", err)
-	}
+	item.TemplateID, _ = strconv.Atoi(c.TemplateID)
+	// item.TemplateID, err = strconv.Atoi(c.TemplateID)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Error parsing Template ID: %v", err)
+	// }
+	item.MasterItemID, _ = strconv.Atoi(c.MasterItemID)
+	// item.MasterItemID, err = strconv.Atoi(c.MasterItemID)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Error parsing Master Item ID: %v", err)
+	// }
 	return item, err
 }
 

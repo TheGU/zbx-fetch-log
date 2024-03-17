@@ -12,7 +12,7 @@ type History struct {
 	Clock int64
 
 	// ItemID is the ID of the related item.
-	ItemID int
+	ItemID string
 
 	// Ns is the nanoseconds when the value was received.
 	Ns int

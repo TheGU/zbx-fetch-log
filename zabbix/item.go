@@ -1,7 +1,9 @@
 package zabbix
 
 import (
+	"encoding/json"
 	"fmt"
+	"strconv"
 )
 
 // Item represents a Zabbix Item returned from the Zabbix API.
@@ -9,10 +11,10 @@ import (
 // See: https://www.zabbix.com/documentation/4.0/manual/api/reference/item/object
 type Item struct {
 	// HostID is the unique ID of the Host.
-	HostID int
+	HostID string
 
 	// ItemID is the unique ID of the Item.
-	ItemID int
+	ItemID string
 
 	// Itemname is the technical name of the Item.
 	ItemName string
@@ -21,7 +23,7 @@ type Item struct {
 	ItemDescr string
 
 	// LastClock is the last Item epoh time.
-	LastClock int
+	LastClock int64
 
 	// LastValue is the last value of the Item.
 	LastValue string
@@ -138,4 +140,28 @@ func (c *Session) GetItems(params ItemGetParams) ([]Item, error) {
 	}
 
 	return out, nil
+}
+
+// GetHostCount queries the Zabbix API for the number of Hosts matching the parameters.
+func (c *Session) GetItemCount(params ItemGetParams) (int, error) {
+	params.CountOutput = true
+
+	req := NewRequest("item.get", params)
+	resp, err := c.Do(req)
+	if err != nil {
+		return 0, err
+	}
+
+	var resultStr string
+	err = json.Unmarshal(resp.Body, &resultStr)
+	if err != nil {
+		return 0, err
+	}
+
+	result, err := strconv.Atoi(resultStr)
+	if err != nil {
+		return 0, err
+	}
+
+	return result, nil
 }

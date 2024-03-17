@@ -8,7 +8,6 @@ import (
 
 var (
 	profile    string
-	command    string
 	outputFile string
 	timeFrom   string
 	key        = []byte("FQ@dhF#Lvo!ZtxA9ArnNdF!aeZZRdxiQ") // Global key variable
