@@ -69,6 +69,7 @@ func setupProfile(profile string, key []byte) {
 	cfg.SetValue(profile, "zbxUsername", zbxUsername)
 	cfg.SetValue(profile, "zbxPassword", base64.StdEncoding.EncodeToString(ciphertext))
 	cfg.SetValue(profile, "ExportType", "snapshot")
+	cfg.SetValue(profile, "CallHostBatch", "100")
 	goconfig.SaveConfigFile(cfg, "config.ini")
 	fmt.Println("Saved profile to config.ini")
 }

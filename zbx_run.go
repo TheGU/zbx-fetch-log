@@ -19,6 +19,7 @@ func runZabbixExport(zbxHost, zbxUsername, zbxPassword, outputFile, timeFrom str
 	// Get call limit from config in int format
 	// callLimit, _ := cfg.Int(profile, "Limit")
 	exportType, _ := cfg.GetValue(profile, "ExportType")
+	callHostBatch, _ := cfg.Int(profile, "CallHostBatch")
 
 	// Time variable to set time from and time to in history.get
 	if timeTo != "" {
@@ -60,14 +61,13 @@ func runZabbixExport(zbxHost, zbxUsername, zbxPassword, outputFile, timeFrom str
 	fmt.Printf("Connected to Zabbix API v%s : %s\n", version, zbxHost)
 
 	// Get hosts ==========================
-
 	paramHost := zabbix.HostGetParams{
 		GetParameters: zabbix.GetParameters{
 			OutputFields: []string{"hostid", "host", "name", "status", "available"},
 			// ResultLimit: 1000,
 			SortField: []string{"hostid"},
 			Filter:    map[string]interface{}{"status": 0},
-			SortOrder: "DESC",
+			SortOrder: "ASC",
 		},
 		SelectHostGroups: []string{"groupid", "name"},
 	}
@@ -102,103 +102,110 @@ func runZabbixExport(zbxHost, zbxUsername, zbxPassword, outputFile, timeFrom str
 
 	// Get items ==========================
 
-	paramItem := zabbix.ItemGetParams{
-		GetParameters: zabbix.GetParameters{
-			OutputFields: []string{"hostid", "itemid", "key_", "prevvalue", "lastvalue", "value_type", "lastclock"},
-			// ResultLimit:  callLimit,
-			Filter: map[string]interface{}{"status": 0},
-			// SortField:  []string{"itemid"},
-			// SortOrder:  "ASC",
-			TextSearch: make(map[string]string),
-		},
-		HostIDs: hostIDs,
-	}
+	// loop through all hosts in batches of callHostBatch
+	for i := 0; i < hostCount; i += callHostBatch {
+		hostBatch := min(i+callHostBatch, hostCount)
 
-	itemCount, err := session.GetItemCount(paramItem)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("Item count: %d\n", itemCount)
-
-	items, err := session.GetItems(paramItem)
-	if err != nil {
-		panic(err)
-	}
-
-	// Print history to file with host and item lookup
-	f, err := os.OpenFile(outputFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-
-	if exportType == "snapshot" {
-		snapshotCount := 0
-
-		// Sort items by LastClock
-		sort.Slice(items, func(i, j int) bool {
-			return items[i].LastClock < items[j].LastClock
-		})
-
-		for _, item := range items {
-			// skip if LastClock not between timeFrom and timeTill
-			if item.LastClock < zbxTimeFrom.Unix() || item.LastClock >= zbxTimeTill.Unix() {
-				continue
-			}
-
-			snapshotCount += 1
-			text := fmt.Sprintf(
-				"%s, Host=\"%s\", Groups=\"%s\", Key=\"%s\", Value=\"%s\"\n",
-				time.Unix(int64(item.LastClock), 0).Format(time.RFC3339),
-				hostmap[item.HostID].Hostname,
-				groupmap[item.HostID],
-				item.Key,
-				item.LastValue)
-
-			if _, err = f.WriteString(text); err != nil {
-				panic(err)
-			}
+		paramItem := zabbix.ItemGetParams{
+			GetParameters: zabbix.GetParameters{
+				OutputFields: []string{"hostid", "itemid", "key_", "prevvalue", "lastvalue", "value_type", "lastclock"},
+				// ResultLimit:  callLimit,
+				Filter: map[string]interface{}{"status": 0},
+				// SortField:  []string{"itemid"},
+				// SortOrder:  "ASC",
+				TextSearch: make(map[string]string),
+			},
+			HostIDs: hostIDs[i:hostBatch],
 		}
 
-		fmt.Printf("Exported %d last snapshots to %s\n", snapshotCount, outputFile)
-
-	} else if exportType == "history" {
-		itemmap := make(map[string]zabbix.Item)
-		for _, item := range items {
-			itemmap[item.ItemID] = item
+		itemCount, err := session.GetItemCount(paramItem)
+		if err != nil {
+			panic(err)
 		}
+		fmt.Printf("Host Batch: %d-%d, Item total: %d\n", i, hostBatch, itemCount)
 
-		// Get history ==========================
-		zbxTimeFromFloat := float64(zbxTimeFrom.Unix())
-		zbxTimeTillFloat := float64(zbxTimeTill.Unix())
-
-		histories, err := session.GetHistories(zabbix.HistoryGetParams{
-			TimeFrom: zbxTimeFromFloat,
-			TimeTill: zbxTimeTillFloat,
-		})
+		items, err := session.GetItems(paramItem)
 		if err != nil {
 			panic(err)
 		}
 
-		// // Sort histories by Clock
-		// sort.Slice(histories, func(i, j int) bool {
-		// 	return histories[i].Clock < histories[j].Clock
-		// })
+		// Print history to file with host and item lookup
+		f, err := os.OpenFile(outputFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
 
-		for _, history := range histories {
-			_hostname := hostmap[itemmap[history.ItemID].HostID].Hostname
-			text := fmt.Sprintf(
-				"%s, Host=\"%s\", Key=\"%s\", Value=\"%s\"\n",
-				time.Unix(history.Clock, 0).Format(time.RFC3339),
-				_hostname,
-				itemmap[history.ItemID].Key,
-				history.Value)
+		if exportType == "snapshot" {
+			snapshotCount := 0
+			snapshotSkip := 0
 
-			if _, err = f.WriteString(text); err != nil {
+			// Sort items by LastClock
+			sort.Slice(items, func(i, j int) bool {
+				return items[i].LastClock < items[j].LastClock
+			})
+
+			for _, item := range items {
+				// skip if LastClock not between timeFrom and timeTill
+				if item.LastClock < zbxTimeFrom.Unix() || item.LastClock >= zbxTimeTill.Unix() {
+					snapshotSkip += 1
+					continue
+				}
+
+				snapshotCount += 1
+				text := fmt.Sprintf(
+					"%s, Host=\"%s\", Groups=\"%s\", Key=\"%s\", Value=\"%s\"\n",
+					time.Unix(int64(item.LastClock), 0).Format(time.RFC3339),
+					hostmap[item.HostID].Hostname,
+					groupmap[item.HostID],
+					item.Key,
+					item.LastValue)
+
+				if _, err = f.WriteString(text); err != nil {
+					panic(err)
+				}
+			}
+
+			fmt.Printf("Exported %d snapshots to %s, skip %d snapshots that outside selected time, total %d snapshots\n", snapshotCount, outputFile, snapshotSkip, snapshotCount+snapshotSkip)
+
+		} else if exportType == "history" {
+			itemmap := make(map[string]zabbix.Item)
+			for _, item := range items {
+				itemmap[item.ItemID] = item
+			}
+
+			// Get history ==========================
+			zbxTimeFromFloat := float64(zbxTimeFrom.Unix())
+			zbxTimeTillFloat := float64(zbxTimeTill.Unix())
+
+			histories, err := session.GetHistories(zabbix.HistoryGetParams{
+				TimeFrom: zbxTimeFromFloat,
+				TimeTill: zbxTimeTillFloat,
+			})
+			if err != nil {
 				panic(err)
 			}
-		}
 
-		fmt.Printf("Exported %d histories to %s\n", len(histories), outputFile)
+			// // Sort histories by Clock
+			// sort.Slice(histories, func(i, j int) bool {
+			// 	return histories[i].Clock < histories[j].Clock
+			// })
+
+			for _, history := range histories {
+				_hostname := hostmap[itemmap[history.ItemID].HostID].Hostname
+				text := fmt.Sprintf(
+					"%s, Host=\"%s\", Key=\"%s\", Value=\"%s\"\n",
+					time.Unix(history.Clock, 0).Format(time.RFC3339),
+					_hostname,
+					itemmap[history.ItemID].Key,
+					history.Value)
+
+				if _, err = f.WriteString(text); err != nil {
+					panic(err)
+				}
+			}
+
+			fmt.Printf("Exported %d histories to %s\n", len(histories), outputFile)
+		}
 	}
 }
