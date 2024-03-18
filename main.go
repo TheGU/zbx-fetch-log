@@ -7,10 +7,11 @@ import (
 )
 
 var (
-	profile    string
-	outputFile string
-	timeFrom   string
-	key        = []byte("FQ@dhF#Lvo!ZtxA9ArnNdF!aeZZRdxiQ") // Global key variable
+	profile  string
+	output   string
+	timeFrom string
+	allLog   bool
+	key      = []byte("FQ@dhF#Lvo!ZtxA9ArnNdF!aeZZRdxiQ") // Global key variable
 
 )
 
@@ -24,8 +25,9 @@ func main() {
 	runFlagSet := flag.NewFlagSet("run", flag.ExitOnError)
 
 	setupFlagSet.StringVar(&profile, "profile", "", "Profile name")
+	runFlagSet.BoolVar(&allLog, "allLog", false, "Fetch all log from zabbix server. Default is false. only log start with system, vm, vfs")
 	runFlagSet.StringVar(&profile, "profile", "", "The profile name")
-	runFlagSet.StringVar(&outputFile, "output", "output.txt", "The output file")
+	runFlagSet.StringVar(&output, "output", "output.txt", "The output format: stdout, tcp, udp, syslog or filename. Default is file output.txt")
 	runFlagSet.StringVar(&timeFrom, "timeFrom", "5m", "The relative time from now")
 
 	switch os.Args[1] {
@@ -34,7 +36,7 @@ func main() {
 		setupProfile(profile, key)
 	case "run":
 		runFlagSet.Parse(os.Args[2:])
-		runProfile(profile, key, outputFile, timeFrom, "")
+		runProfile(profile, key, output, timeFrom, "", allLog)
 	default:
 		fmt.Println("Invalid command. Use setup or run.")
 		os.Exit(1)
@@ -42,9 +44,12 @@ func main() {
 }
 
 func printHelp() {
-	fmt.Println(`Usage: zbx-fetch-log [setup|run] --profile PROFILE_NAME [--output.txt OUTPUT_FILE] [--timeFrom TIME_FROM]
+	fmt.Println(`Usage: zbx-fetch-log [setup|run] --profile PROFILE_NAME [--output.txt OUTPUT_FILE] [--timeFrom TIME_FROM] [--allLog]
 
     --profile: The profile name.
     --output.txt: The output file. Default is "output.txt".
-    --timeFrom: The relative time from now. Default is "5m".`)
+    --timeFrom: The relative time from now. Default is "5m".
+    --allLog: Fetch all log from zabbix server. Default is false. only log start with system, vm, vfs
+
+	`)
 }

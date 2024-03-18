@@ -59,7 +59,7 @@ type GetParameters struct {
 	// the map values are the search expression.
 	//
 	// Only string and text fields are supported.
-	TextSearch map[string]string `json:"search,omitempty"`
+	TextSearch map[string]interface{} `json:"search,omitempty"`
 
 	// TextSearchByStart causes an API query to return only results that match
 	// the search parameters given in TextSearch where each given field starts

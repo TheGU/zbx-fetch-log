@@ -2,30 +2,37 @@ package main
 
 import (
 	"fmt"
+	"log"
+
 	"os"
+	"path/filepath"
 	"sort"
 	"time"
 
 	"pattapongj/zbx-fetch-log/v6/zabbix"
 
 	"github.com/Unknwon/goconfig"
+	gsyslog "github.com/hashicorp/go-syslog"
 )
 
-func runZabbixExport(zbxHost, zbxUsername, zbxPassword, outputFile, timeFrom string, timeTo string, profile string, cfg *goconfig.ConfigFile) {
+func runZabbixExport(
+	zbxHost, zbxUsername, zbxPassword,
+	output, timeFrom string, timeTo string,
+	profile string, cfg *goconfig.ConfigFile, allLog bool) {
 	var zbxTimeTill time.Time
 	var zbxTimeFrom time.Time
 	var err error
 
 	// Get call limit from config in int format
 	// callLimit, _ := cfg.Int(profile, "Limit")
-	exportType, _ := cfg.GetValue(profile, "ExportType")
-	callHostBatch, _ := cfg.Int(profile, "CallHostBatch")
+	exportType := cfg.MustValue(profile, "ExportType", "snapshots")
+	callHostBatch := cfg.MustInt(profile, "CallHostBatch", 100)
 
 	// Time variable to set time from and time to in history.get
 	if timeTo != "" {
 		zbxTimeTill, err = relativeToAbsoluteTime(timeTo)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 	} else {
 		zbxTimeTill = time.Now()
@@ -34,12 +41,12 @@ func runZabbixExport(zbxHost, zbxUsername, zbxPassword, outputFile, timeFrom str
 	if timeFrom != "" {
 		zbxTimeFrom, err = relativeToAbsoluteTime(timeFrom)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 	} else {
 		zbxTimeFrom, err = relativeToAbsoluteTime("5m")
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 	}
 
@@ -49,13 +56,13 @@ func runZabbixExport(zbxHost, zbxUsername, zbxPassword, outputFile, timeFrom str
 	// Default approach - without session caching
 	session, err := zabbix.NewSession(zbxHost, zbxUsername, zbxPassword)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	version, err := session.GetVersion()
 
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	fmt.Printf("Connected to Zabbix API v%s : %s\n", version, zbxHost)
@@ -74,15 +81,15 @@ func runZabbixExport(zbxHost, zbxUsername, zbxPassword, outputFile, timeFrom str
 
 	hostCount, err := session.GetHostCount(paramHost)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	hosts, err := session.GetHosts(paramHost)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	if len(hosts) != hostCount {
-		panic(fmt.Sprintf("Warning: Host count mismatch: %d != %d\n", len(hosts), hostCount))
+		log.Fatalf("Warning: Host count mismatch: %d != %d\n", len(hosts), hostCount)
 	}
 
 	hostmap := make(map[string]zabbix.Host)
@@ -104,6 +111,7 @@ func runZabbixExport(zbxHost, zbxUsername, zbxPassword, outputFile, timeFrom str
 
 	// loop through all hosts in batches of callHostBatch
 	for i := 0; i < hostCount; i += callHostBatch {
+
 		hostBatch := min(i+callHostBatch, hostCount)
 
 		paramItem := zabbix.ItemGetParams{
@@ -113,28 +121,72 @@ func runZabbixExport(zbxHost, zbxUsername, zbxPassword, outputFile, timeFrom str
 				Filter: map[string]interface{}{"status": 0},
 				// SortField:  []string{"itemid"},
 				// SortOrder:  "ASC",
-				TextSearch: make(map[string]string),
+				TextSearch: make(map[string]interface{}),
 			},
 			HostIDs: hostIDs[i:hostBatch],
+		}
+		if !allLog {
+			paramItem.TextSearch["key_"] = []string{"system", "vm", "vfs"}
+			paramItem.SearchByAny = true
+			paramItem.TextSearchByStart = true
 		}
 
 		itemCount, err := session.GetItemCount(paramItem)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
-		fmt.Printf("Host Batch: %d-%d, Item total: %d\n", i, hostBatch, itemCount)
+
+		fmt.Printf("Host Batch: %d-%d", i, hostBatch)
+		fmt.Printf(", Item total: %d\n", itemCount)
 
 		items, err := session.GetItems(paramItem)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 
 		// Print history to file with host and item lookup
-		f, err := os.OpenFile(outputFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
-		if err != nil {
-			panic(err)
+		programName := filepath.Base(os.Args[0])
+		log.SetFlags(0)
+		log.SetPrefix("")
+
+		if output == "stdout" {
+			log.SetOutput(os.Stdout)
+			fmt.Println("Logging to stdout")
+		} else if output == "tcp" || output == "udp" {
+			syslogServer := cfg.MustValue(profile, "SyslogServer", "localhost:514")
+			syslogFacility := cfg.MustValue(profile, "SyslogFacility", "LOCAL7")
+			fmt.Printf("SyslogServer: %s\n", syslogServer)
+			fmt.Printf("SyslogFacility: %s\n", syslogFacility)
+
+			sysLog, err := gsyslog.DialLogger(output, syslogServer, gsyslog.LOG_INFO, syslogFacility, programName)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer sysLog.Close()
+
+			log.SetOutput(sysLog)
+			fmt.Printf("Logging to syslog server %s://%s INFO.%s\n", output, syslogServer, syslogFacility)
+
+		} else if output == "syslog" {
+			syslogFacility := cfg.MustValue(profile, "SyslogFacility", "LOCAL7")
+			fmt.Printf("SyslogFacility: %s\n", syslogFacility)
+
+			sysLog, err := gsyslog.NewLogger(gsyslog.LOG_INFO, syslogFacility, programName)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer sysLog.Close()
+			log.SetOutput(sysLog)
+			fmt.Printf("Logging to syslog %s INFO.%s\n", programName, syslogFacility)
+		} else {
+			f, err := os.OpenFile(output, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer f.Close()
+			log.SetOutput(f)
+			fmt.Printf("Logging to file %s\n", output)
 		}
-		defer f.Close()
 
 		if exportType == "snapshot" {
 			snapshotCount := 0
@@ -154,19 +206,19 @@ func runZabbixExport(zbxHost, zbxUsername, zbxPassword, outputFile, timeFrom str
 
 				snapshotCount += 1
 				text := fmt.Sprintf(
-					"%s, Host=\"%s\", Groups=\"%s\", Key=\"%s\", Value=\"%s\"\n",
+					"Time=\"%s\", Host=\"%s\", Groups=\"%s\", Key=\"%s\", Value=\"%s\", PrevValue=\"%s\"\n",
 					time.Unix(int64(item.LastClock), 0).Format(time.RFC3339),
 					hostmap[item.HostID].Hostname,
 					groupmap[item.HostID],
 					item.Key,
-					item.LastValue)
+					item.LastValue,
+					item.PrevValue,
+				)
 
-				if _, err = f.WriteString(text); err != nil {
-					panic(err)
-				}
+				log.Print(text)
 			}
 
-			fmt.Printf("Exported %d snapshots to %s, skip %d snapshots that outside selected time, total %d snapshots\n", snapshotCount, outputFile, snapshotSkip, snapshotCount+snapshotSkip)
+			fmt.Printf("Exported total=%d, write=%d, skip=%d (outside selected time)\n", snapshotCount+snapshotSkip, snapshotCount, snapshotSkip)
 
 		} else if exportType == "history" {
 			itemmap := make(map[string]zabbix.Item)
@@ -183,7 +235,7 @@ func runZabbixExport(zbxHost, zbxUsername, zbxPassword, outputFile, timeFrom str
 				TimeTill: zbxTimeTillFloat,
 			})
 			if err != nil {
-				panic(err)
+				log.Fatal(err)
 			}
 
 			// // Sort histories by Clock
@@ -200,12 +252,10 @@ func runZabbixExport(zbxHost, zbxUsername, zbxPassword, outputFile, timeFrom str
 					itemmap[history.ItemID].Key,
 					history.Value)
 
-				if _, err = f.WriteString(text); err != nil {
-					panic(err)
-				}
+				log.Print(text)
 			}
 
-			fmt.Printf("Exported %d histories to %s\n", len(histories), outputFile)
+			fmt.Printf("Exported %d histories\n", len(histories))
 		}
 	}
 }

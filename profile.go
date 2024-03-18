@@ -69,12 +69,14 @@ func setupProfile(profile string, key []byte) {
 	cfg.SetValue(profile, "zbxUsername", zbxUsername)
 	cfg.SetValue(profile, "zbxPassword", base64.StdEncoding.EncodeToString(ciphertext))
 	cfg.SetValue(profile, "ExportType", "snapshot")
-	cfg.SetValue(profile, "CallHostBatch", "100")
+	cfg.SetValue(profile, "CallHostBatch", "50")
+	cfg.SetValue(profile, "SyslogServer", "localhost:514")
+	cfg.SetValue(profile, "SyslogFacility", "LOCAL7")
 	goconfig.SaveConfigFile(cfg, "config.ini")
 	fmt.Println("Saved profile to config.ini")
 }
 
-func runProfile(profile string, key []byte, outputFile string, timeFrom string, timeTo string) {
+func runProfile(profile string, key []byte, output string, timeFrom string, timeTo string, allLog bool) {
 	// Load from INI file
 	cfg, _ := goconfig.LoadConfigFile("config.ini")
 	zbxHost, _ := cfg.GetValue(profile, "zbxHost")
@@ -89,7 +91,10 @@ func runProfile(profile string, key []byte, outputFile string, timeFrom string, 
 		os.Exit(1)
 	}
 
-	runZabbixExport(zbxHost, zbxUsername, string(zbxPassword), outputFile, timeFrom, timeTo, profile, cfg)
+	runZabbixExport(
+		zbxHost, zbxUsername, string(zbxPassword),
+		output, timeFrom, timeTo,
+		profile, cfg, allLog)
 }
 
 func encrypt(key, text []byte) ([]byte, error) {

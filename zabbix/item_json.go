@@ -71,6 +71,7 @@ type jItem struct {
 	Discover       string `json:"discover,omitempty"`
 	LastClock      string `json:"lastclock,omitempty"`
 	LastValue      string `json:"lastvalue,omitempty"`
+	PrevValue      string `json:"prevvalue,omitempty"`
 	LastValueType  string `json:"value_type,omitempty"`
 }
 
@@ -97,6 +98,7 @@ func (c *jItem) Item() (*Item, error) {
 	// 	return nil, fmt.Errorf("Error parsing Item LastClock: %v", err)
 	// }
 	item.LastValue = c.LastValue
+	item.PrevValue = c.PrevValue
 
 	item.LastValueType, err = strconv.Atoi(c.LastValueType)
 	if err != nil {
