@@ -47,7 +47,7 @@ func printHelp() {
 	fmt.Println(`Usage: zbx-fetch-log [setup|run] --profile PROFILE_NAME [--output.txt OUTPUT_FILE] [--timeFrom TIME_FROM] [--allLog]
 
     --profile: The profile name.
-    --output.txt: The output file. Default is "output.txt".
+    --output output.txt: The output file. Default is "output.txt".
     --timeFrom: The relative time from now. Default is "5m".
     --allLog: Fetch all log from zabbix server. Default is false. only log start with system, vm, vfs
 

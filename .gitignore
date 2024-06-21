@@ -6,3 +6,4 @@ config.ini
 config
 output.txt
 zbx-fetch-log.exe
+build/
