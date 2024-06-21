@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strconv"
 
 	"os"
 	"path/filepath"
@@ -203,16 +204,34 @@ func runZabbixExport(
 					snapshotSkip += 1
 					continue
 				}
-
 				snapshotCount += 1
+
+				// Attempt to parse LastValue and PrevValue as floats
+				lastValueFloat, errLast := strconv.ParseFloat(item.LastValue, 64)
+				prevValueFloat, errPrev := strconv.ParseFloat(item.PrevValue, 64)
+
+				// Prepare formatted strings for LastValue and PrevValue
+				var formattedLastValue, formattedPrevValue string
+				if errLast == nil {
+					formattedLastValue = fmt.Sprintf("%.4g", lastValueFloat)
+				} else {
+					formattedLastValue = item.LastValue // Keep original string if not a float
+				}
+				if errPrev == nil {
+					formattedPrevValue = fmt.Sprintf("%.4g", prevValueFloat)
+				} else {
+					formattedPrevValue = item.PrevValue // Keep original string if not a float
+				}
+
 				text := fmt.Sprintf(
-					"Time=\"%s\", Host=\"%s\", Groups=\"%s\", Key=\"%s\", Value=\"%s\", PrevValue=\"%s\"\n",
+					"Time=\"%s\", HostName=\"%s\", Host=\"%s\", Groups=\"%s\", Key=\"%s\", Value=\"%s\", PrevValue=\"%s\"\n",
 					time.Unix(int64(item.LastClock), 0).Format(time.RFC3339),
 					hostmap[item.HostID].Hostname,
+					hostmap[item.HostID].DisplayName,
 					groupmap[item.HostID],
 					item.Key,
-					item.LastValue,
-					item.PrevValue,
+					formattedLastValue,
+					formattedPrevValue,
 				)
 
 				log.Print(text)
@@ -244,11 +263,11 @@ func runZabbixExport(
 			// })
 
 			for _, history := range histories {
-				_hostname := hostmap[itemmap[history.ItemID].HostID].Hostname
 				text := fmt.Sprintf(
-					"%s, Host=\"%s\", Key=\"%s\", Value=\"%s\"\n",
+					"Time=\"%s\", Host=\"%s\", Groups=\"%s\", Key=\"%s\", Value=\"%s\"\n",
 					time.Unix(history.Clock, 0).Format(time.RFC3339),
-					_hostname,
+					hostmap[itemmap[history.ItemID].HostID].Hostname,
+					groupmap[itemmap[history.ItemID].HostID],
 					itemmap[history.ItemID].Key,
 					history.Value)
 
